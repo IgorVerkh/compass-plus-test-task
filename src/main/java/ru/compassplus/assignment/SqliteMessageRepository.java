@@ -1,4 +1,4 @@
-package org.example;
+package ru.compassplus.assignment;
 
 import java.sql.Connection;
 import java.sql.DriverManager;

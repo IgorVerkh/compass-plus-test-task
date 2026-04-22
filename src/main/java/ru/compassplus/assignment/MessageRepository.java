@@ -1,4 +1,4 @@
-package org.example;
+package ru.compassplus.assignment;
 
 /**
  * Контракт для слоя логирования сообщений в хранилище.

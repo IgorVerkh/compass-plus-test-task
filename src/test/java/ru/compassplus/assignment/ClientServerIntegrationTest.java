@@ -1,4 +1,4 @@
-package org.example;
+package ru.compassplus.assignment;
 
 import noNamespace.MessageDocument;
 import org.junit.jupiter.api.AfterAll;
@@ -34,7 +34,7 @@ class ClientServerIntegrationTest {
                 "java",
                 "-cp",
                 System.getProperty("java.class.path"),
-                "org.example.Server"
+                "ru.compassplus.assignment.Server"
         ).directory(new File(System.getProperty("user.dir"))).start();
 
         waitUntilServerIsReady();
