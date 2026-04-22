@@ -53,23 +53,23 @@ class ClientServerIntegrationTest {
     @Test
     void allowedWordReturnsSuccessStatus() throws Exception {
         MessageDocument.Message.Response.Status status = sendAndReadStatus("hello world");
-        assertEquals(0, status.getCode());
-        assertEquals("success", status.getReason());
+        assertEquals(Server.STATUS_ACCEPTED, status.getCode());
+        assertEquals(Server.REASON_SUCCESS, status.getReason());
     }
 
     @Test
     void forbiddenWordReturnsRejectStatus() throws Exception {
         MessageDocument.Message.Response.Status status = sendAndReadStatus("this is spam");
-        assertEquals(1, status.getCode());
-        assertEquals("used inappropriate language", status.getReason());
+        assertEquals(Server.STATUS_REJECTED, status.getCode());
+        assertEquals(Server.REASON_INAPPROPRIATE_LANGUAGE, status.getReason());
     }
 
     @Test
     void longMessageBiggerThanSingleTcpSegmentReturnsStatus() throws Exception {
         String longText = "ok ".repeat(3000);
         MessageDocument.Message.Response.Status status = sendAndReadStatus(longText);
-        assertEquals(0, status.getCode());
-        assertEquals("success", status.getReason());
+        assertEquals(Server.STATUS_ACCEPTED, status.getCode());
+        assertEquals(Server.REASON_SUCCESS, status.getReason());
     }
 
     private static MessageDocument.Message.Response.Status sendAndReadStatus(String text) throws Exception {

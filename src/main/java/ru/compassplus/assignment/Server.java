@@ -47,6 +47,11 @@ import java.util.concurrent.Executors;
  * </ul>
  */
 public class Server {
+    public static final int STATUS_ACCEPTED = 0;
+    public static final int STATUS_REJECTED = 1;
+    public static final String REASON_SUCCESS = "success";
+    public static final String REASON_INAPPROPRIATE_LANGUAGE = "used inappropriate language";
+
     private final int port;
     private final int threadPoolSize;
     private final String forbiddenWordsPath;
@@ -111,15 +116,15 @@ public class Server {
         MessageDocument.Message msg = doc.getMessage();
         String time = msg.getHeader().getTime();
         int statusCode;
-        String reason = "success";
+        String reason = REASON_SUCCESS;
 
         if (msg.isSetRequest()) {
             String user = msg.getRequest().getUser();
             String text = msg.getRequest().getText();
 
             statusCode = moderationCodeForText(text);
-            if (statusCode == 1) {
-                reason = "used inappropriate language";
+            if (statusCode == STATUS_REJECTED) {
+                reason = REASON_INAPPROPRIATE_LANGUAGE;
             }
 
             logToDb(time, user, text, statusCode);
@@ -131,10 +136,10 @@ public class Server {
         String lowerText = text.toLowerCase();
         for (String word : forbiddenWords) {
             if (lowerText.contains(word)) {
-                return 1;
+                return STATUS_REJECTED;
             }
         }
-        return 0;
+        return STATUS_ACCEPTED;
     }
 
     private void sendResponse(BufferedWriter out, String time, int code, String reason) throws IOException {
