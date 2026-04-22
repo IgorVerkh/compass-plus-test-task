@@ -21,7 +21,7 @@ import java.util.concurrent.Executors;
  *
  * <p>Ответ сервера читается в отдельном потоке, разбирается через XmlBeans и
  * выводится в консоль в виде статуса обработки ({@code code}/{@code reason}).
- * В поле {@code user} используется имя пользователя ОС, как указано в задании.</p>
+ * В поле {@code user} используется имя пользователя ОС.</p>
  *
  * <p>Параметры подключения и формат времени берутся из
  * {@code application.properties}.</p>
@@ -38,7 +38,7 @@ public class Client {
         ExecutorService pool = Executors.newFixedThreadPool(2);
 
         try (Socket socket = new Socket(HOST, PORT)) {
-            System.out.println("🟢 Connected to server.");
+            System.out.println("Connected to server.");
 
             // Поток чтения ответов сервера
             pool.submit(() -> readServerResponses(socket));
@@ -52,16 +52,16 @@ public class Client {
                 if (input.startsWith("-m ")) {
                     sendMessage(socket, input.substring(3));
                 } else if (input.equalsIgnoreCase("-h")) {
-                    System.out.println("🔴 Exiting...");
+                    System.out.println("Exiting...");
                     socket.close();
                     pool.shutdown();
                     break;
                 } else {
-                    System.out.println("❌ Unknown command. Use: -m <text> or -h");
+                    System.out.println("Unknown command. Use: -m <text> or -h");
                 }
             }
         } catch (IOException e) {
-            System.err.println("❌ Connection failed: " + e.getMessage());
+            System.err.println("Connection failed: " + e.getMessage());
         }
     }
 
@@ -82,7 +82,7 @@ public class Client {
                 }
             }
         } catch (IOException e) {
-            System.out.println("🔴 Disconnected from server.");
+            System.out.println("Disconnected from server.");
         }
     }
 
@@ -99,7 +99,7 @@ public class Client {
 
         Writer out = new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8);
         out.write(doc.xmlText(new org.apache.xmlbeans.XmlOptions()));
-        out.write("\n"); // Разделитель для серверного readLine()
+        out.write("\n");
         out.flush();
     }
 

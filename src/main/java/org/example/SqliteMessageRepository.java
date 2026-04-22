@@ -27,6 +27,10 @@ public class SqliteMessageRepository implements MessageRepository {
 
     @Override
     public void saveMessage(String time, String user, String text, int code) {
+        if (connection == null) {
+            throw new IllegalStateException("DB connection is not initialized");
+        }
+
         synchronized (lock) {
             try (PreparedStatement ps = connection.prepareStatement(
                     "INSERT INTO MESSAGES (TIME, USER, TEXT, RESULT) VALUES (?, ?, ?, ?)")) {
@@ -46,7 +50,7 @@ public class SqliteMessageRepository implements MessageRepository {
             connection = DriverManager.getConnection(dbUrl);
             connection.createStatement().executeUpdate(
                     "CREATE TABLE IF NOT EXISTS MESSAGES (ID INTEGER PRIMARY KEY AUTOINCREMENT, TIME TEXT, USER TEXT, TEXT TEXT, RESULT INTEGER)");
-            System.out.println("✅ DB initialized");
+            System.out.println("DB initialized");
         } catch (SQLException e) {
             System.err.println("DB init error: " + e.getMessage());
         }

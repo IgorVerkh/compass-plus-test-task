@@ -2,6 +2,7 @@ package org.example;
 
 import noNamespace.MessageDocument;
 import org.apache.xmlbeans.XmlException;
+import org.apache.xmlbeans.XmlOptions;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -32,44 +33,60 @@ import java.util.concurrent.Executors;
  * <p>Результат обработки записывается в БД через {@link MessageRepository}.
  * Таким образом в классе остается прикладная логика протокола, а детали JDBC
  * вынесены в отдельную реализацию репозитория.</p>
+ *
+ * <p>Параметры подключения, количество потоков в пуле и пути до базы данных и списка запрещенных слов берутся из
+ * {@code application.properties}.</p>
+ *
+ * <p><b>Обработка сообщений больше одного TCP-пакета (фрейминг):</b>
+ * <ul>
+ *   <li>Для разделения сообщений используется newline-фрейминг: клиент отправляет
+ *       XML + {@code \n}, сервер читает через {@link BufferedReader#readLine()}.</li>
+ *   <li>{@code readLine()} автоматически буферизует входной поток и собирает данные,
+ *       пока не встретит {@code \n}. Размер сообщения не ограничен размером TCP-сегмента
+ *       (~1460 байт) — метод будет читать чанками, пока не получит полный фрейм.</li>
+ * </ul>
  */
 public class Server {
     private static final Properties CONFIG = loadConfig();
     private static final int PORT = Integer.parseInt(CONFIG.getProperty("app.port", "9090"));
+    private static final int THREAD_POOL_SIZE = Integer.parseInt(CONFIG.getProperty("app.server.threads", "10"));
     private static final String DB_URL = CONFIG.getProperty("app.db.url", "jdbc:sqlite:messages.db");
     private static final String FORBIDDEN_WORDS_PATH = CONFIG.getProperty("app.forbidden.words.path", "forbidden_words.txt");
     private static final Set<String> FORBIDDEN_WORDS = new HashSet<>();
     private static final MessageRepository REPOSITORY = new SqliteMessageRepository(DB_URL);
 
+
+    @SuppressWarnings("InfiniteLoopStatement")
     public static void main(String[] args) {
         loadForbiddenWords();
-        ExecutorService pool = Executors.newFixedThreadPool(10);
 
-        try (ServerSocket server = new ServerSocket(PORT)) {
-            System.out.println("🟢 Server started on port " + PORT);
+        try (ExecutorService pool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+             ServerSocket server = new ServerSocket(PORT)) {
+
+            System.out.println("Server started on port " + PORT);
             while (true) {
                 Socket client = server.accept();
                 pool.submit(() -> handleClient(client));
             }
         } catch (IOException e) {
             System.err.println("Server error: " + e.getMessage());
-        } finally {
-            pool.shutdown();
         }
     }
 
     private static void handleClient(Socket client) {
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
-             BufferedWriter out = new BufferedWriter(new OutputStreamWriter(client.getOutputStream(), StandardCharsets.UTF_8))) {
+        try (client;
+             BufferedReader in = new BufferedReader(
+                     new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
+             BufferedWriter out = new BufferedWriter(
+                     new OutputStreamWriter(client.getOutputStream(), StandardCharsets.UTF_8))) {
 
             String line;
             while ((line = in.readLine()) != null) {
                 processMessage(line, out);
             }
+
         } catch (IOException | XmlException e) {
             System.err.println("Client handling error: " + e.getMessage());
-        } finally {
-            try { client.close(); } catch (IOException ignored) {}
         }
     }
 
@@ -77,7 +94,7 @@ public class Server {
         MessageDocument doc = MessageDocument.Factory.parse(xml);
         MessageDocument.Message msg = doc.getMessage();
         String time = msg.getHeader().getTime();
-        int statusCode = 0;
+        int statusCode;
         String reason = "success";
 
         if (msg.isSetRequest()) {
@@ -113,8 +130,8 @@ public class Server {
         status.setCode(code);
         status.setReason(reason);
 
-        out.write(doc.xmlText(new org.apache.xmlbeans.XmlOptions()));
-        out.newLine(); // Обязательно для readLine() на клиенте
+        out.write(doc.xmlText(new XmlOptions()));
+        out.newLine();
         out.flush();
     }
 
@@ -122,9 +139,9 @@ public class Server {
         try {
             List<String> lines = Files.readAllLines(Paths.get(FORBIDDEN_WORDS_PATH));
             for (String w : lines) FORBIDDEN_WORDS.add(w.toLowerCase().trim());
-            System.out.println("✅ Forbidden words loaded: " + FORBIDDEN_WORDS.size());
+            System.out.println("Forbidden words loaded: " + FORBIDDEN_WORDS.size());
         } catch (IOException e) {
-            System.err.println("⚠️ Forbidden words file not found. Creating empty set.");
+            System.err.println("Forbidden words file not found. Creating empty set.");
         }
     }
 

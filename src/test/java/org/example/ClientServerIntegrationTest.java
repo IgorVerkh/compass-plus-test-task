@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * валидируют XML-ответ. Это позволяет автоматически подтвердить поведение,
  * которое обычно демонстрируют вручную: принятие корректного сообщения,
  * отклонение текста с запрещенным словом и корректную обработку длинного
- * payload (больше одного типичного TCP-сегмента).</p>
+ * сообщения (больше одного типичного TCP-сегмента).</p>
  */
 class ClientServerIntegrationTest {
     private static final String HOST = "localhost";
