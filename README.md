@@ -32,8 +32,8 @@
 
 ### Вариант 1 — через IDE
 
-1. Запустить `org.example.Server` (метод `main`).
-2. Запустить `org.example.Client` (метод `main`).
+1. Запустить `ru.compassplus.assignment.Server` (метод `main`).
+2. Запустить `ru.compassplus.assignment.Client` (метод `main`).
 3. В клиенте использовать команды:
    - `-m <текст>` — отправить сообщение
    - `-h` — выйти
