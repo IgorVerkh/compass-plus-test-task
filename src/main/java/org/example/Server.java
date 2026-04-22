@@ -47,23 +47,39 @@ import java.util.concurrent.Executors;
  * </ul>
  */
 public class Server {
-    private static final Properties CONFIG = loadConfig();
-    private static final int PORT = Integer.parseInt(CONFIG.getProperty("app.port", "9090"));
-    private static final int THREAD_POOL_SIZE = Integer.parseInt(CONFIG.getProperty("app.server.threads", "10"));
-    private static final String DB_URL = CONFIG.getProperty("app.db.url", "jdbc:sqlite:messages.db");
-    private static final String FORBIDDEN_WORDS_PATH = CONFIG.getProperty("app.forbidden.words.path", "forbidden_words.txt");
-    private static final Set<String> FORBIDDEN_WORDS = new HashSet<>();
-    private static final MessageRepository REPOSITORY = new SqliteMessageRepository(DB_URL);
+    private final int port;
+    private final int threadPoolSize;
+    private final String forbiddenWordsPath;
+    private final Set<String> forbiddenWords = new HashSet<>();
+    private final MessageRepository repository;
 
+    public Server(int port, int threadPoolSize, String forbiddenWordsPath, MessageRepository repository) {
+        this.port = port;
+        this.threadPoolSize = threadPoolSize;
+        this.forbiddenWordsPath = forbiddenWordsPath;
+        this.repository = repository;
+    }
+
+    public static void main(String[] args) {
+        Properties config = loadConfig();
+        int port = Integer.parseInt(config.getProperty("app.port", "9090"));
+        int threadPoolSize = Integer.parseInt(config.getProperty("app.server.threads", "10"));
+        String dbUrl = config.getProperty("app.db.url", "jdbc:sqlite:messages.db");
+        String forbiddenWordsPath = config.getProperty("app.forbidden.words.path", "forbidden_words.txt");
+        MessageRepository repository = new SqliteMessageRepository(dbUrl);
+
+        Server server = new Server(port, threadPoolSize, forbiddenWordsPath, repository);
+        server.start();
+    }
 
     @SuppressWarnings("InfiniteLoopStatement")
-    public static void main(String[] args) {
+    public void start() {
         loadForbiddenWords();
 
-        try (ExecutorService pool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
-             ServerSocket server = new ServerSocket(PORT)) {
+        try (ExecutorService pool = Executors.newFixedThreadPool(threadPoolSize);
+             ServerSocket server = new ServerSocket(port)) {
 
-            System.out.println("Server started on port " + PORT);
+            System.out.println("Server started on port " + port);
             while (true) {
                 Socket client = server.accept();
                 pool.submit(() -> handleClient(client));
@@ -73,7 +89,7 @@ public class Server {
         }
     }
 
-    private static void handleClient(Socket client) {
+    private void handleClient(Socket client) {
         try (client;
              BufferedReader in = new BufferedReader(
                      new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
@@ -90,7 +106,7 @@ public class Server {
         }
     }
 
-    private static void processMessage(String xml, BufferedWriter out) throws IOException, XmlException {
+    private void processMessage(String xml, BufferedWriter out) throws IOException, XmlException {
         MessageDocument doc = MessageDocument.Factory.parse(xml);
         MessageDocument.Message msg = doc.getMessage();
         String time = msg.getHeader().getTime();
@@ -111,9 +127,9 @@ public class Server {
         }
     }
 
-    private static int moderationCodeForText(String text) {
+    private int moderationCodeForText(String text) {
         String lowerText = text.toLowerCase();
-        for (String word : Server.FORBIDDEN_WORDS) {
+        for (String word : forbiddenWords) {
             if (lowerText.contains(word)) {
                 return 1;
             }
@@ -121,7 +137,7 @@ public class Server {
         return 0;
     }
 
-    private static void sendResponse(BufferedWriter out, String time, int code, String reason) throws IOException {
+    private void sendResponse(BufferedWriter out, String time, int code, String reason) throws IOException {
         MessageDocument doc = MessageDocument.Factory.newInstance();
         MessageDocument.Message msg = doc.addNewMessage();
         msg.addNewHeader().setTime(time);
@@ -135,18 +151,18 @@ public class Server {
         out.flush();
     }
 
-    private static void loadForbiddenWords() {
+    private void loadForbiddenWords() {
         try {
-            List<String> lines = Files.readAllLines(Paths.get(FORBIDDEN_WORDS_PATH));
-            for (String w : lines) FORBIDDEN_WORDS.add(w.toLowerCase().trim());
-            System.out.println("Forbidden words loaded: " + FORBIDDEN_WORDS.size());
+            List<String> lines = Files.readAllLines(Paths.get(forbiddenWordsPath));
+            for (String w : lines) forbiddenWords.add(w.toLowerCase().trim());
+            System.out.println("Forbidden words loaded: " + forbiddenWords.size());
         } catch (IOException e) {
             System.err.println("Forbidden words file not found. Creating empty set.");
         }
     }
 
-    private static void logToDb(String time, String user, String text, int code) {
-        REPOSITORY.saveMessage(time, user, text, code);
+    private void logToDb(String time, String user, String text, int code) {
+        repository.saveMessage(time, user, text, code);
     }
 
     private static Properties loadConfig() {
